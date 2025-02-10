@@ -56,7 +56,7 @@ router.put('/user', function (req, res) {
         .catch(err => res.send(err));
 });
 
-router.post('/calendar', function (req, res) {
+router.post('/admin', function (req, res) {
     const { timing, guide_name } = req.body;
     db.query("CALL AddNewTime(?, ?)", [timing, guide_name])
         .then(data => res.send(data))
