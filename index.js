@@ -1,8 +1,8 @@
 var express = require('express');
 var app = express();
-var cors = require('cors'); // Додаємо CORS
+var cors = require('cors'); // ?????? CORS
 
-// Налаштування CORS
+// ???????????? CORS
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -30,7 +30,7 @@ db.query("Select * from booking")
         console.error('Database connection error:', err);
     });
 
-// Обробка помилок
+// ??????? ???????
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).send('Something broke!');
