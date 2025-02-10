@@ -1,2 +1,10 @@
-.vs/
 node_modules/
+# Visual Studio files
+*.njsproj
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+*.njsproj.user
