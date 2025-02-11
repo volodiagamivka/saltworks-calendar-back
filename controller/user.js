@@ -33,9 +33,9 @@ router.get('/us', function (req, res) {
 
 
 router.post('/calendar', function (req, res) {
-    const { phone, timing, adults, guide_id, kids, is_individual } = req.body;
+    const { phone, email, name, timing, adults, guide_id, kids, is_individual } = req.body;
 
-    db.query("CALL AddBooking(?, ?, ?, ?, ?, ?)", [phone, timing, adults, guide_id, kids, is_individual])
+    db.query("CALL AddBooking(?, ?, ?, ?, ?, ?, ?, ?)", [phone, email, name, timing, adults, guide_id, kids, is_individual])
         .then(data => {
             res.status(200).send({ success: true, data });
         })
