@@ -13,7 +13,8 @@ module.exports = {
         IN p_adults INT, 
         IN p_guide_id INT,
         IN p_kids INT,
-        IN p_is_individual BOOLEAN
+        IN p_is_individual BOOLEAN,
+        IN p_saltwork BOOLEAN  -- Add the saltwork parameter
       )
       BEGIN
         DECLARE v_timing_id INT DEFAULT NULL;
@@ -60,8 +61,8 @@ module.exports = {
             IF (p_kids + p_adults) > 30 THEN
                 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Забагато людей. Максимум можна тільки 30';
             ELSE
-                INSERT INTO timing (timing, guide_id, is_free) 
-                VALUES (p_timing, p_guide_id, NOT(p_is_individual));
+                INSERT INTO timing (timing, guide_id, is_free, saltwork) 
+                VALUES (p_timing, p_guide_id, NOT(p_is_individual), false);
                 SET v_timing_id = LAST_INSERT_ID();
             END IF;
         END IF;
@@ -73,8 +74,9 @@ module.exports = {
             SET v_user_id = LAST_INSERT_ID();
         END IF;
 
-        INSERT INTO booking (adults, kids, timing_id, is_individual, user_id) 
-        VALUES (p_adults, p_kids, v_timing_id, p_is_individual, v_user_id);
+           -- Insert the booking with the additional saltwork field
+    INSERT INTO booking (adults, kids, timing_id, is_individual, user_id, saltwork) 
+    VALUES (p_adults, p_kids, v_timing_id, p_is_individual, v_user_id, p_saltwork);
 
         COMMIT;
       END
@@ -90,8 +92,9 @@ module.exports = {
         DECLARE v_guide_id int;
         START TRANSACTION;
         SELECT ID INTO v_guide_id FROM guide g WHERE p_guide_name = g.name;
-        INSERT INTO timing(Timing, guide_id, is_free) 
-        VALUES (new_timing, v_guide_id, true);
+           -- Додаємо новий запис з saltwork = true
+    INSERT INTO timing(Timing, guide_id, is_free, saltwork) 
+    VALUES (new_timing, v_guide_id, true, true);
         COMMIT;
       END
     `);
@@ -156,13 +159,11 @@ module.exports = {
     },
 
     async down(queryInterface, Sequelize) {
-        // Drop all stored procedures when rolling back the migration
-        await queryInterface.sequelize.query(`
-      DROP PROCEDURE IF EXISTS \`AddBooking\`;
-      DROP PROCEDURE IF EXISTS \`addNewTime\`;
-      DROP PROCEDURE IF EXISTS \`DeleteArrangement\`;
-      DROP PROCEDURE IF EXISTS \`GetBookingsByPhoneNumber\`;
-      DROP PROCEDURE IF EXISTS \`СhangeArrangement\`;
-    `);
+        // Drop each stored procedure individually when rolling back the migration
+        await queryInterface.sequelize.query('DROP PROCEDURE IF EXISTS AddBooking');
+        await queryInterface.sequelize.query('DROP PROCEDURE IF EXISTS addNewTime');
+        await queryInterface.sequelize.query('DROP PROCEDURE IF EXISTS DeleteArrangement');
+        await queryInterface.sequelize.query('DROP PROCEDURE IF EXISTS GetBookingsByPhoneNumber');
+        await queryInterface.sequelize.query('DROP PROCEDURE IF EXISTS СhangeArrangement');
     }
 };

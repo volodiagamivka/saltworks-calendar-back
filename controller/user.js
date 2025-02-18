@@ -106,8 +106,8 @@ router.get('/us', function (req, res) {
 router.post('/calendar', function (req, res) {
     const { phone, email, name, timing, adults, guide_id, kids, is_individual } = req.body;
 
-    db.query("CALL AddBooking(?, ?, ?, ?, ?, ?, ?, ?)", {
-        replacements: [phone, email, name, timing, adults, guide_id, kids, is_individual],  // Using replacements to pass parameters
+    db.query("CALL AddBooking(?, ?, ?, ?, ?, ?, ?, ?, ?)", {
+        replacements: [phone, email, name, timing, adults, guide_id, kids, is_individual, false],  // Using replacements to pass parameters
         type: db.QueryTypes.RAW  // If using stored procedure
     })
         .then(data => {
@@ -233,5 +233,29 @@ router.delete('/user', function (req, res) {
             res.status(500).send({ error: err.message });  // Handle errors
         });
 });
+// New route to retrieve bookings with user data
+router.get('/user-bookings', function (req, res) {
+    db.query(`
+        SELECT 
+            u.ID AS user_id,
+            u.phone,
+            u.email,
+            u.name,
+            b.timing_id,
+            t.timing,
+            b.adults,
+            b.kids,
+            b.is_individual
+        FROM booking b
+        JOIN user u ON b.user_id = u.ID
+        JOIN timing t ON b.timing_id = t.ID
+        ORDER BY t.timing;
+    `)
+        .then(data => {
+            res.send(data); // Return the booking data along with user details
+        })
+        .catch(err => res.status(500).send(err)); // Handle any errors
+});
+
 
 module.exports = router;

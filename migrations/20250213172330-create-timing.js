@@ -28,6 +28,10 @@ module.exports = {
                 type: Sequelize.TINYINT(1), // Tinyint for boolean values
                 allowNull: false,
             },
+            saltwork: {
+                type: Sequelize.TINYINT(1), // Tinyint for boolean-like values
+                allowNull: false,
+            },
         });
 
     },
