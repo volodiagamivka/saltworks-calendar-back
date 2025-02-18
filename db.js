@@ -1,18 +1,26 @@
-var mysql = require('mysql2/promise')
+require('dotenv').config();
+const { Sequelize } = require('sequelize');
 
-var mysqlPool = mysql.createPool({
-    host: '127.0.0.1',
-    user: 'root',
-    password: 'MYrosyaW1llB3M1ne',
-    database: 'calendar2'
-})
+// Log the environment variables to check if they are loaded
+console.log('DB_USER:', process.env.DB_USER);
+console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
+console.log('DB_HOST:', process.env.DB_HOST);
+console.log('DB_NAME:', process.env.DB_NAME);
 
-mysqlPool.query("Select 1")
-    .then(function(data) {
-        console.log("succeded");
-    })
-    .catch(function(err) {
-        console.log('failed');
-    });
+const sequelize = new Sequelize(
+    process.env.DB_NAME,  // Database name from .env
+    process.env.DB_USER,  // Database user from .env
+    process.env.DB_PASSWORD,  // Database password from .env
+    {
+        host: process.env.DB_HOST,  // Host from .env
+        dialect: 'mysql',  // MySQL dialect
+        logging: false,  // Disable SQL query logging
+    }
+);
 
-module.exports = mysqlPool;
+// Check connection
+sequelize.authenticate()
+    .then(() => console.log('Connection has been established successfully.'))
+    .catch(err => console.error('Unable to connect to the database:', err));
+
+module.exports = sequelize;
