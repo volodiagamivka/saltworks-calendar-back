@@ -35,7 +35,9 @@ module.exports = {
         AND t.timing = p_timing;
 
         IF v_check > 0 THEN
+			rollback;
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Booking already exists.';
+            
         END IF;
 
         SELECT ID, is_free INTO v_timing_id, v_is_free 
@@ -44,6 +46,7 @@ module.exports = {
 
         IF v_timing_id IS NOT NULL THEN
             IF v_is_free = 0 THEN
+				rollback;
                 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'The timing is already booked.';
             ELSE
                 SELECT COALESCE(SUM(kids + adults), 0) INTO v_amount 
@@ -51,6 +54,7 @@ module.exports = {
                 WHERE timing_id = v_timing_id;
 
                 IF (v_amount + p_kids + p_adults) > 30 THEN
+					rollback;
                     SET v_message = CONCAT('Sorry, there are not enough spaces. Remaining spots: ', 30 - v_amount);
                     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_message;
                 END IF;
@@ -61,6 +65,7 @@ module.exports = {
             END IF;
         ELSE
             IF (p_kids + p_adults) > 30 THEN
+				rollback;
                 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Not enough spots. Maximum allowed is 30.';
             ELSE
                 INSERT INTO timing (timing, guide_id, is_free, saltwork) 
