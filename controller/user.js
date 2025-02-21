@@ -2,48 +2,43 @@ const express = require('express');
 const router = express.Router();
 const cors = require('cors');
 const app = express();
-const jwt = require('jsonwebtoken');  // Імпортуємо бібліотеку для роботи з JWT
+const jwt = require('jsonwebtoken');
 const db = require('../db');
-const bcrypt = require('bcryptjs');  // Import bcryptjs
+const bcrypt = require('bcryptjs');
 
 app.use(cors({
-    origin: '*',  // ? ????????? ?????? ?? ?????????? ?????
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: false  // ??????? ?? false, ??????? ????????????? origin: '*'
+    credentials: false
 }));
 app.options('*', cors());
-//http://localhost:3000/api/booking/
-// Мідлвар для перевірки JWT токену
+
 const authenticateJWT = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1]; // Токен у форматі "Bearer <token>"
+    const token = req.headers['authorization']?.split(' ')[1];
 
     if (token) {
-        // Перевірка токену
         jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
             if (err) {
-                return res.sendStatus(403);  // Якщо токен не валідний
+                return res.sendStatus(403);
             }
-            req.user = user;  // Якщо токен валідний, додаємо користувача до запиту
-            next();  // Продовжуємо виконання наступного мідлвару або маршруту
+            req.user = user;
+            next();
         });
     } else {
-        res.sendStatus(401);  // Якщо токен не надано, відмовляємо в доступі
+        res.sendStatus(401);
     }
 };
 
 router.post('/login', (req, res) => {
     const { username, password } = req.body;
 
-    // Log the request body to verify it's being passed correctly
     console.log("Request Body:", req.body);
 
-    // Check if username and password are provided
     if (!username || !password) {
         return res.status(400).send('No password and username!');
     }
 
-    // Query to find admin by login
     db.query("SELECT * FROM admin WHERE login = :username", {
         replacements: { username: username },
         type: db.QueryTypes.SELECT
@@ -54,32 +49,26 @@ router.post('/login', (req, res) => {
                 return res.status(401).send('Wrong username or password');
             }
 
-            const admin = results[0];  // Get the first result
+            const admin = results[0];
 
-            console.log("Stored password in DB:", admin.password);  // Log the stored password
-            console.log("Entered password:", password);  // Log the entered password
+            console.log("Stored password in DB:", admin.password);
+            console.log("Entered password:", password);
 
-            // Directly compare the entered password with the stored password
             if (password !== admin.password) {
                 console.log("Wrong password");
                 return res.status(401).send('Wrong password');
             }
 
-            // If the password is valid, generate a JWT token
             const user = { username: admin.login };
             const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-            // Send the token in the response
             res.json({ token });
-
         })
         .catch((err) => {
             console.error('Database error:', err);
             res.status(500).send('Internal Server Error');
         });
 });
-
-
 
 router.get('/us', function (req, res) {
     db.query(`
@@ -92,23 +81,22 @@ router.get('/us', function (req, res) {
         GROUP BY t.ID, t.timing, t.guide_id, t.is_free
         ORDER BY t.timing;
     `, {
-        type: db.QueryTypes.SELECT  // Query type set to SELECT
+        type: db.QueryTypes.SELECT
     })
         .then(data => {
-            res.json(data);  // Send data as JSON
+            res.json(data);
         })
         .catch(err => {
-            res.status(500).json({ error: err.message });  // Error handling
+            res.status(500).json({ error: err.message });
         });
 });
-
 
 router.post('/calendar', function (req, res) {
     const { phone, email, name, timing, adults, guide_id, kids, is_individual } = req.body;
 
     db.query("CALL AddBooking(?, ?, ?, ?, ?, ?, ?, ?, ?)", {
-        replacements: [phone, email, name, timing, adults, guide_id, kids, is_individual, false],  // Using replacements to pass parameters
-        type: db.QueryTypes.RAW  // If using stored procedure
+        replacements: [phone, email, name, timing, adults, guide_id, kids, is_individual, false],
+        type: db.QueryTypes.RAW
     })
         .then(data => {
             res.status(200).send({ success: true, data });
@@ -119,10 +107,10 @@ router.post('/calendar', function (req, res) {
         });
 });
 
-
 router.get('/calendar', function (req, res) {
     db.query(`
-        SELECT t.timing, t.guide_id, g.name, 
+        SELECT t.timing, t.guide_id, g.name,t.saltwork, 
+                t.id AS timing_id,
                MAX(b.is_individual) AS is_individual,
                SUM(b.adults + b.kids) AS total_people
         FROM timing t
@@ -130,13 +118,13 @@ router.get('/calendar', function (req, res) {
         LEFT JOIN booking b ON t.ID = b.timing_id
         GROUP BY t.timing, t.guide_id, g.name;
     `, {
-        type: db.QueryTypes.SELECT  // Query type set to SELECT
+        type: db.QueryTypes.SELECT
     })
         .then(data => {
-            res.json(data);  // Send response data in JSON format
+            res.json(data);
         })
         .catch(err => {
-            res.status(500).json({ error: err.message });  // Handle errors
+            res.status(500).json({ error: err.message });
         });
 });
 
@@ -144,39 +132,40 @@ router.post('/admin', authenticateJWT, function (req, res) {
     const { timing, guide_name } = req.body;
 
     db.query("CALL AddNewTime(?, ?)", {
-        replacements: [timing, guide_name],  // Using replacements to pass parameters
-        type: db.QueryTypes.RAW  // If using stored procedure
+        replacements: [timing, guide_name],
+        type: db.QueryTypes.RAW
     })
         .then(data => {
-            res.send(data);  // Send data response
+            res.send(data);
         })
         .catch(err => {
-            res.status(500).send({ error: err.message });  // Handle errors
+            res.status(500).send({ error: err.message });
         });
 });
+
 router.delete('/admin', authenticateJWT, function (req, res) {
     const { booking_id } = req.body;
 
     db.query("CALL DeleteArrangement(?)", {
-        replacements: [booking_id],  // Using replacements to pass the parameter
-        type: db.QueryTypes.RAW  // If using stored procedure
+        replacements: [booking_id],
+        type: db.QueryTypes.RAW
     })
-        .then(data => res.send(data))  // Send success response
+        .then(data => res.send(data))
         .catch(err => {
-            res.status(500).send({ error: err.message });  // Handle errors
+            res.status(500).send({ error: err.message });
         });
 });
 
 router.put('/admin', authenticateJWT, function (req, res) {
-    const { booking_id, new_adults, new_children } = req.body;
+    const { booking_id, new_adults, new_children , new_timing } = req.body;
 
-    db.query("CALL changeArrangement(?, ?, ?)", {
-        replacements: [booking_id, new_adults, new_children],  // Using replacements to pass the parameters
-        type: db.QueryTypes.RAW  // If using stored procedure
+    db.query("CALL ChangeArrangement(?, ?, ?, ?)", {
+        replacements: [booking_id, new_adults, new_children, new_timing],
+        type: db.QueryTypes.RAW
     })
-        .then(data => res.send(data))  // Send success response
+        .then(data => res.send(data))
         .catch(err => {
-            res.status(500).send({ error: err.message });  // Handle errors
+            res.status(500).send({ error: err.message });
         });
 });
 
@@ -184,12 +173,12 @@ router.delete('/user', function (req, res) {
     const { booking_id } = req.body;
 
     db.query("CALL DeleteArrangement(?)", {
-        replacements: [booking_id],  // Using replacements to pass the parameter
-        type: db.QueryTypes.RAW  // If using stored procedure
+        replacements: [booking_id],
+        type: db.QueryTypes.RAW
     })
-        .then(data => res.send(data))  // Send success response
+        .then(data => res.send(data))
         .catch(err => {
-            res.status(500).send({ error: err.message });  // Handle errors
+            res.status(500).send({ error: err.message });
         });
 });
 
@@ -197,43 +186,41 @@ router.get('/user', function (req, res) {
     const { phone } = req.body;
 
     db.query("CALL GetBookingsByPhoneNumber(?)", {
-        replacements: [phone],  // Using replacements to pass the parameter
-        type: db.QueryTypes.RAW  // If using stored procedure
+        replacements: [phone],
+        type: db.QueryTypes.RAW
     })
-        .then(data => res.send(data))  // Send data response
+        .then(data => res.send(data))
         .catch(err => {
-            res.status(500).send({ error: err.message });  // Handle errors
+            res.status(500).send({ error: err.message });
         });
 });
-
 
 router.put('/user', function (req, res) {
     const { booking_id, new_adults, new_children } = req.body;
 
-    db.query("CALL changeArrangement(?, ?, ?)", {
-        replacements: [booking_id, new_adults, new_children],  // Using replacements to pass the parameters
-        type: db.QueryTypes.RAW  // If using stored procedure
+    db.query("CALL ChangeArrangement(?, ?, ?)", {
+        replacements: [booking_id, new_adults, new_children],
+        type: db.QueryTypes.RAW
     })
-        .then(data => res.send(data))  // Send success response
+        .then(data => res.send(data))
         .catch(err => {
-            res.status(500).send({ error: err.message });  // Handle errors
+            res.status(500).send({ error: err.message });
         });
 });
-
 
 router.delete('/user', function (req, res) {
     const { booking_id } = req.body;
 
     db.query("CALL DeleteArrangement(?)", {
-        replacements: [booking_id],  // Using replacements to pass the parameter
-        type: db.QueryTypes.RAW  // If using stored procedure
+        replacements: [booking_id],
+        type: db.QueryTypes.RAW
     })
-        .then(data => res.send(data))  // Send success response
+        .then(data => res.send(data))
         .catch(err => {
-            res.status(500).send({ error: err.message });  // Handle errors
+            res.status(500).send({ error: err.message });
         });
 });
-// New route to retrieve bookings with user data
+
 router.get('/user-bookings', function (req, res) {
     db.query(`
         SELECT 
@@ -252,10 +239,45 @@ router.get('/user-bookings', function (req, res) {
         ORDER BY t.timing;
     `)
         .then(data => {
-            res.send(data); // Return the booking data along with user details
+            res.send(data);
         })
-        .catch(err => res.status(500).send(err)); // Handle any errors
+        .catch(err => res.status(500).send(err));
 });
 
+router.get('/calendar/:timingId/booking', authenticateJWT, function (req, res) {
+    const { timingId } = req.params;
+
+    db.query(`
+        SELECT 
+            u.ID AS user_id,
+            u.phone,
+            u.email,
+            u.name,
+            b.timing_id,
+            t.timing,
+            b.adults,
+            b.kids,
+            b.is_individual
+        FROM booking b
+        JOIN user u ON b.user_id = u.ID
+        JOIN timing t ON b.timing_id = t.ID
+        WHERE t.ID = :timingId
+        LIMIT 1;
+    `, {
+        replacements: { timingId },
+        type: db.QueryTypes.SELECT
+    })
+        .then(data => {
+            if (data && data.length > 0) {
+                res.json(data[0]);
+            } else {
+                res.status(404).json({ error: 'Booking not found' });
+            }
+        })
+        .catch(err => {
+            console.error('Error fetching booking details:', err);
+            res.status(500).json({ error: err.message });
+        });
+});
 
 module.exports = router;

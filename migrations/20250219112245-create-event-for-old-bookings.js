@@ -4,7 +4,7 @@ module.exports = {
     up: async (queryInterface, Sequelize) => {
         await queryInterface.sequelize.query(`
       CREATE EVENT delete_old_bookings
-      ON SCHEDULE EVERY 1 HOUR
+      ON SCHEDULE EVERY 15 MINUTE
       DO
       BEGIN
         -- Delete old bookings
