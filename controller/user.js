@@ -17,28 +17,23 @@ app.options('*', cors());
 
 const clientId = 'bc93e6ee-7e90-48d5-bb06-17355533f0d8';
 const clientSecret = '~965CXVkZUkRDXmuOTcq9Qy7kO';
-const activeCodes = {}; // Для зберігання активних кодів в пам'яті (тимчасово)
-
-// Час життя коду в мілісекундах (5 хвилин)
+const activeCodes = {};
 const CODE_LIFETIME = 5 * 60 * 1000;
 
-// Очищення застарілих кодів кожні 5 хвилин
 setInterval(() => {
     const currentTime = Date.now();
     for (const phone in activeCodes) {
-        // Якщо код застарілий (через 5 хвилин після створення)
         if (currentTime - activeCodes[phone].timestamp > CODE_LIFETIME) {
-            delete activeCodes[phone]; // Видаляємо старий код
+            delete activeCodes[phone]; 
             console.log(`Code for phone ${phone} expired and removed.`);
         }
     }
-}, CODE_LIFETIME); // Перевірка кожні 5 хвилин
+}, CODE_LIFETIME); 
 
 router.post('/get-token', async (req, res) => {
     try {
         console.log("Request started");
 
-        // Виконання запиту для отримання токена
         const tokenResponse = await axios.post(
             'https://api-gateway.kyivstar.ua/idp/oauth2/token',
             new URLSearchParams({
@@ -51,74 +46,52 @@ router.post('/get-token', async (req, res) => {
                 },
             }
         );
-
-        // Логування відповіді токена
         console.log("Token Response:", tokenResponse.data);
-
-        // Отримання токена
         const accessToken = tokenResponse.data.access_token;
         const code = Math.floor(Math.random() * (9999 - 1000 + 1)) + 1000;
-
-        // Зберігаємо код в об'єкті activeCodes для подальшої перевірки
         const userPhone = req.body.to;
         activeCodes[userPhone] = {
             code: code,
-            timestamp: Date.now(), // Додаємо timestamp для терміну дії
+            timestamp: Date.now(),
         };
-
-        // Виконання другого запиту на відправку SMS
         const smsResponse = await axios.post(
-            'https://api-gateway.kyivstar.ua/sandbox/rest/v1beta/sms',  // Correct URL for sending SMS
+            'https://api-gateway.kyivstar.ua/sandbox/rest/v1beta/sms',  
             {
-                from: 'messagedesk',  // Відправник повідомлення
-                to: userPhone,        // Номер телефону отримувача, переданий у тілі запиту
-                text: `Your verification code is: ${code}`,  // Текст повідомлення
+                from: 'messagedesk',  
+                to: userPhone,  
+                text: `Your verification code is: ${code}`, 
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${accessToken}`,  // Використання токена для авторизації
+                    'Authorization': `Bearer ${accessToken}`,  
                     'Content-Type': 'application/json',
                 },
             }
         );
-
-        // Логування відповіді SMS
         console.log("SMS Response:", smsResponse.data);
-
-        // Відправка відповіді клієнту
-        res.json(smsResponse.data); // Повертаємо результат відправки SMS
-
+        res.json(smsResponse.data);
     } catch (error) {
         console.error('Error occurred:', error);
         res.status(500).send('An error occurred while fetching token or sending SMS');
     }
     console.log("Request finished");
 });
-
-// Новий роут для перевірки введеного коду
 router.post('/verify-code', (req, res) => {
     const { phone, code } = req.body;
-
-    // Перевірка, чи код є в активних кодах і чи він не прострочений
     if (activeCodes[phone]) {
         const savedCode = activeCodes[phone].code;
         const timestamp = activeCodes[phone].timestamp;
-
-        // Якщо код ще не прострочений (наприклад, через 5 хвилин після створення)
         if (Date.now() - timestamp < CODE_LIFETIME) {
             if (savedCode === parseInt(code)) {
                 const token = jwt.sign({ phone: phone }, process.env.JWT_SECRET, { expiresIn: '1h' });
                 res.json({ token });
             } else {
-                // Невірний код
                 res.status(400).send({ success: false, message: 'Invalid code.' });
             }
         } else {
-            // Код прострочений
             res.status(400).send({ success: false, message: 'Code has expired.' });
         }
     } else {
-        // Якщо коду немає
         res.status(400).send({ success: false, message: 'No code sent to this phone number.' });
     }
 });
