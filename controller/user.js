@@ -264,7 +264,7 @@ router.delete('/user', authenticateJWT ,  function (req, res) {
         });
 });
 
-router.get('/user', authenticateJWT , function (req, res) {
+router.post('/user', authenticateJWT , function (req, res) {
     const { phone } = req.body;
 
     db.query("CALL GetBookingsByPhoneNumber(?)", {
