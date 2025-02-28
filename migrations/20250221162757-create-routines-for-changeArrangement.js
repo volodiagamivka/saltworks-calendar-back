@@ -23,7 +23,7 @@ module.exports = {
 
         await queryInterface.sequelize.query(`
       CREATE DEFINER=\`root\`@\`localhost\` PROCEDURE \`AddBooking_for_change\`(
-   IN p_phone VARCHAR(20), 
+   IN p_phone VARCHAR(25), 
    IN p_email VARCHAR(45),
    IN p_name VARCHAR(45),
    IN p_timing DATETIME, 

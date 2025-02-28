@@ -243,18 +243,30 @@ router.post('/admin', authenticateJWT_admin, function (req, res) {
 });
 
 router.delete('/admin', authenticateJWT_admin, function (req, res) {
-    const { booking_id } = req.body;
+    const { action, id } = req.body;
 
-    db.query("CALL DeleteArrangement(?)", {
-        replacements: [booking_id],
-        type: db.QueryTypes.RAW
-    })
-        .then(data => res.send(data))
-        .catch(err => {
-            res.status(500).send({ error: err.message });
-        });
+    if (action === 'booking') {
+        db.query("CALL DeleteArrangement(?)", {
+            replacements: [id],
+            type: db.QueryTypes.RAW
+        })
+            .then(data => res.send(data))
+            .catch(err => {
+                res.status(500).send({ error: err.message });
+            });
+    } else if (action === 'timing') {
+        db.query("CALL DeleteTiming(?)", {
+            replacements: [id],
+            type: db.QueryTypes.RAW
+        })
+            .then(data => res.send(data))
+            .catch(err => {
+                res.status(500).send({ error: err.message });
+            });
+    } else {
+        res.status(400).send({ error: 'Invalid action specified' });
+    }
 });
-
 router.put('/admin', authenticateJWT_admin, function (req, res) {
     const { booking_id, new_adults, new_children , new_timing } = req.body;
 

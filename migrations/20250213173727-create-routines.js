@@ -6,7 +6,7 @@ module.exports = {
         // Create 'AddBooking' stored procedure
         await queryInterface.sequelize.query(`
       CREATE DEFINER=\`root\`@\`localhost\` PROCEDURE \`AddBooking\`(
-        IN p_phone VARCHAR(20), 
+        IN p_phone VARCHAR(25), 
         IN p_email VARCHAR(45),
         IN p_name VARCHAR(45),
         IN p_timing DATETIME, 
@@ -131,7 +131,7 @@ module.exports = {
         // Create 'GetBookingsByPhoneNumber' stored procedure
         await queryInterface.sequelize.query(`
       CREATE DEFINER=\`root\`@\`localhost\` PROCEDURE \`GetBookingsByPhoneNumber\`(
-        IN p_phone VARCHAR(15)
+        IN p_phone VARCHAR(25)
       )
       BEGIN
         SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
@@ -155,7 +155,7 @@ module.exports = {
         IN new_timing DATETIME  -- Add missing parameter for new_timing
       )
       BEGIN
-        DECLARE v_phone VARCHAR(15);
+        DECLARE v_phone VARCHAR(25);
         DECLARE v_email VARCHAR(25);
         DECLARE v_name VARCHAR(45);
         DECLARE v_guide_id INT;
