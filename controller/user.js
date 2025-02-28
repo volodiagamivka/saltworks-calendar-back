@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const bcrypt = require('bcryptjs');
 const axios = require('axios');
+require('dotenv').config();
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -15,8 +16,8 @@ app.use(cors({
 }));
 app.options('*', cors());
 
-const clientId = 'bc93e6ee-7e90-48d5-bb06-17355533f0d8';
-const clientSecret = '~965CXVkZUkRDXmuOTcq9Qy7kO';
+const clientId = process.env.KYIVSTAR_ID;
+const clientSecret = process.env.KYIVSTAR_SECRET;
 const activeCodes = {};
 const CODE_LIFETIME = 5 * 60 * 1000;
 
@@ -95,13 +96,29 @@ router.post('/verify-code', (req, res) => {
         res.status(400).send({ success: false, message: 'No code sent to this phone number.' });
     }
 });
+const authenticateJWT_admin = (req, res, next) => {
+    const token = req.headers['authorization']?.split(' ')[1];
+
+    if (token) {
+        jwt.verify(token, process.env.JWT_SECRET2, (err, user) => {
+            if (err) {
+                console.log('JWT verification error:', err); 
+                return res.sendStatus(403);
+            }
+            req.user = user;
+            next();
+        });
+    } else {
+        res.sendStatus(401);
+    }
+};
 const authenticateJWT = (req, res, next) => {
     const token = req.headers['authorization']?.split(' ')[1];
 
     if (token) {
         jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
             if (err) {
-                console.log('JWT verification error:', err); 
+                console.log('JWT verification error:', err);
                 return res.sendStatus(403);
             }
             req.user = user;
@@ -142,7 +159,7 @@ router.post('/login', (req, res) => {
             }
 
             const user = { username: admin.login };
-            const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1h' });
+            const token = jwt.sign(user, process.env.JWT_SECRET2, { expiresIn: '1h' });
 
             res.json({ token });
         })
@@ -210,7 +227,7 @@ router.get('/calendar', function (req, res) {
         });
 });
 
-router.post('/admin', authenticateJWT, function (req, res) {
+router.post('/admin', authenticateJWT_admin, function (req, res) {
     const { timing, guide_name } = req.body;
 
     db.query("CALL AddNewTime(?, ?)", {
@@ -225,7 +242,7 @@ router.post('/admin', authenticateJWT, function (req, res) {
         });
 });
 
-router.delete('/admin', authenticateJWT, function (req, res) {
+router.delete('/admin', authenticateJWT_admin, function (req, res) {
     const { booking_id } = req.body;
 
     db.query("CALL DeleteArrangement(?)", {
@@ -238,10 +255,10 @@ router.delete('/admin', authenticateJWT, function (req, res) {
         });
 });
 
-router.put('/admin', authenticateJWT, function (req, res) {
+router.put('/admin', authenticateJWT_admin, function (req, res) {
     const { booking_id, new_adults, new_children , new_timing } = req.body;
 
-    db.query("CALL ChangeArrangement(?, ?, ?, ?)", {
+    db.query("CALL ChangeArrangement_admin(?, ?, ?, ?)", {
         replacements: [booking_id, new_adults, new_children, new_timing],
         type: db.QueryTypes.RAW
     })
@@ -289,7 +306,7 @@ router.put('/user', authenticateJWT ,function (req, res) {
             res.status(500).send({ error: err.message });
         });
 });
-router.get('/user-bookings', function (req, res) {
+router.get('/user-bookings', authenticateJWT_admin, function (req, res) {
     db.query(`
         SELECT 
             u.ID AS user_id,
@@ -300,7 +317,11 @@ router.get('/user-bookings', function (req, res) {
             t.timing,
             b.adults,
             b.kids,
-            b.is_individual
+            b.is_individual,
+            CASE
+                WHEN (b.adults + b.kids) >= 10 THEN (50 * b.kids + 100 * b.adults)
+                ELSE 1000
+            END AS price
         FROM booking b
         JOIN user u ON b.user_id = u.ID
         JOIN timing t ON b.timing_id = t.ID
@@ -312,7 +333,8 @@ router.get('/user-bookings', function (req, res) {
         .catch(err => res.status(500).send(err));
 });
 
-router.get('/calendar/:timingId/booking', authenticateJWT, function (req, res) {
+
+router.get('/calendar/:timingId/booking', authenticateJWT_admin, function (req, res) {
     const { timingId } = req.params;
 
     db.query(`
